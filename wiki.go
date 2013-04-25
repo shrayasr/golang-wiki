@@ -41,7 +41,7 @@ func getTitle(w http.ResponseWriter, r *http.Request) (title string, err error) 
 
 	if !titleValidator.MatchString(title) {
 		http.NotFound(w,r)
-		err = errors.new("Invalid Page Title")
+		err = errors.New("Invalid Page Title")
 	}
 
 	return
@@ -57,13 +57,24 @@ func renderTemplate(w http.ResponseWriter, templateFile string, p *Page) {
 
 }
 
-func viewHandler(w http.ResponseWriter, r *http.Request) {
+func makeHandler(fn func (http.ResponseWriter, *http.Request, string)) http.HandlerFunc {
 
-	title,err := getTitle(w,r)
+	return func (w http.ResponseWriter, r *http.Request) {
 
-	if err != nil {
-		return
+		title := r.URL.Path[lenPath:]
+
+		if !titleValidator.MatchString(title) {
+			http.NotFound(w,r)
+			return
+		}
+
+		fn (w,r,title)
+
 	}
+
+}
+
+func viewHandler(w http.ResponseWriter, r *http.Request, title string) {
 
 	fmt.Printf("Rendering %s\n",title)
 
@@ -77,13 +88,7 @@ func viewHandler(w http.ResponseWriter, r *http.Request) {
 	renderTemplate(w,"view",p)
 }
 
-func editHandler(w http.ResponseWriter, r *http.Request) {
-
-	title,err := getTitle(w,r)
-
-	if err != nil {
-		return
-	}
+func editHandler(w http.ResponseWriter, r *http.Request, title string) {
 
 	fmt.Printf("Editing %s\n",title)
 
@@ -96,13 +101,7 @@ func editHandler(w http.ResponseWriter, r *http.Request) {
 	renderTemplate(w,"edit",p)
 }
 
-func saveHandler(w http.ResponseWriter, r *http.Request) {
-
-	title,err := getTitle(w,r)
-
-	if err != nil {
-		return
-	}
+func saveHandler(w http.ResponseWriter, r *http.Request, title string) {
 
 	fmt.Printf("Saving %s\n",title)
 
@@ -126,9 +125,9 @@ func indexHandler(w http.ResponseWriter, r *http.Request) {
 func main() {
 
 	http.HandleFunc("/",indexHandler)
-	http.HandleFunc("/view/",viewHandler)
-	http.HandleFunc("/edit/",editHandler)
-	http.HandleFunc("/save/",saveHandler)
+	http.HandleFunc("/view/",makeHandler(viewHandler))
+	http.HandleFunc("/edit/",makeHandler(editHandler))
+	http.HandleFunc("/save/",makeHandler(saveHandler))
 
 	fmt.Println("Listening on 8080");
 
